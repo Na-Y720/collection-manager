@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="description" content="購入金額と現在相場をまとめて管理できるコレクション管理アプリ" />
+  <title>Collection Manager</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="loading" class="center-screen">読み込み中...</div>
+
+  <main id="authView" class="auth-shell hidden">
+    <section class="auth-card">
+      <div class="brand-mark">CM</div>
+      <h1>Collection Manager</h1>
+      <p class="muted">買った物と現在相場を、ひとつの場所で。</p>
+      <div class="auth-tabs">
+        <button id="signinTab" class="tab active" type="button">ログイン</button>
+        <button id="signupTab" class="tab" type="button">新規登録</button>
+      </div>
+      <form id="authForm" class="stack">
+        <label>メールアドレス<input id="email" type="email" autocomplete="email" required /></label>
+        <label>パスワード<input id="password" type="password" autocomplete="current-password" minlength="6" required /></label>
+        <div id="authError" class="error-box hidden"></div>
+        <div id="authSuccess" class="success-box hidden"></div>
+        <button id="authSubmit" class="primary" type="submit">ログイン</button>
+      </form>
+    </section>
+  </main>
+
+  <main id="appView" class="app-shell hidden">
+    <header class="topbar">
+      <div><div class="eyebrow">COLLECTION MANAGER</div><h1>マイコレクション</h1></div>
+      <button id="signoutButton" class="secondary" type="button">ログアウト</button>
+    </header>
+    <div id="pageError" class="error-box page-error hidden"></div>
+
+    <section class="summary-grid">
+      <article class="summary-card"><span>購入総額</span><strong id="purchaseTotal">¥0</strong></article>
+      <article class="summary-card"><span>現在評価額</span><strong id="currentTotal">¥0</strong><small id="valuedCount">0/0商品を評価済み</small></article>
+      <article class="summary-card"><span>含み損益</span><strong id="profitTotal">¥0</strong><small id="profitRate">0.0%</small></article>
+      <article class="summary-card"><span>保有数</span><strong id="unitTotal">0 個</strong><small id="itemCount">0登録</small></article>
+    </section>
+
+    <section class="toolbar">
+      <input id="searchInput" class="search" placeholder="商品名・JAN・カテゴリで検索" />
+      <button id="addButton" class="primary" type="button">＋ コレクション登録</button>
+    </section>
+
+    <section id="formCard" class="form-card hidden">
+      <div class="section-heading">
+        <div><span id="formEyebrow" class="eyebrow">NEW</span><h2 id="formTitle">コレクションを登録</h2></div>
+        <button id="closeFormButton" class="icon-button" type="button" aria-label="閉じる">×</button>
+      </div>
+      <form id="collectionForm" class="form-grid">
+        <label class="span-2">商品名<input id="name" required placeholder="例：30th CELEBRATION BOX" /></label>
+        <label>JANコード
+          <div class="input-with-button">
+            <input id="janCode" inputmode="numeric" placeholder="JANを入力" />
+            <button id="scanButton" class="scan-button" type="button" title="カメラでJAN読取">📷</button>
+          </div>
+          <small id="scannerMessage" class="scanner-message hidden"></small>
+        </label>
+        <label>カテゴリ<input id="category" placeholder="ポケカ / フィギュア等" /></label>
+        <label>購入日<input id="purchaseDate" type="date" /></label>
+        <label>購入単価<input id="purchasePrice" type="number" min="0" step="1" placeholder="5980" /></label>
+        <label>個数<input id="quantity" type="number" min="1" step="1" value="1" /></label>
+        <label>現在相場（1個）<input id="currentPrice" type="number" min="0" step="1" placeholder="未入力でもOK" /></label>
+        <label class="span-2">メモ<textarea id="memo" rows="3" placeholder="シュリンクあり、保管場所など"></textarea></label>
+        <div class="form-actions span-2">
+          <button id="cancelButton" class="secondary" type="button">キャンセル</button>
+          <button id="saveButton" class="primary" type="submit">登録する</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="emptyState" class="empty-state hidden">
+      <strong id="emptyTitle">まだコレクションがありません</strong>
+      <span id="emptyText">最初の商品を登録してみましょう。</span>
+    </section>
+    <section id="itemGrid" class="item-grid"></section>
+  </main>
+
+  <div id="scannerOverlay" class="scanner-overlay hidden">
+    <div class="scanner-card">
+      <video id="scannerVideo" playsinline muted></video>
+      <div class="scanner-guide">JANコードをカメラ中央に入れてください</div>
+      <button id="stopScanButton" class="secondary" type="button">閉じる</button>
+    </div>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
