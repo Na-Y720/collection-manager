@@ -1,4 +1,6 @@
 const STORAGE_KEY = 'collection-manager-personal-v1'
+const JAN_MASTER_KEY = 'collection-manager-jan-master-v1'
+const RAKUTEN_SETTINGS_KEY = 'collection-manager-rakuten-settings-v1'
 const $ = (id) => document.getElementById(id)
 const state = { items: [], editingId: null, stream: null, scanning: false }
 
@@ -49,6 +51,7 @@ function makeSeedItems() {
     category: item.category,
     purchase_date: null,
     purchase_price: item.purchase_price,
+    list_price: null,
     quantity: item.quantity,
     current_price: null,
     memo: item.memo || null,
@@ -78,6 +81,7 @@ function newId() {
 function init() {
   loadLocal()
   bindEvents()
+  loadApiSettings()
   $('purchaseDate').value = today()
   renderSummary()
   renderItems()
@@ -90,14 +94,216 @@ function bindEvents() {
   $('collectionForm').addEventListener('submit', saveItem)
   $('searchInput').addEventListener('input', renderItems)
   $('janCode').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '') })
+  $('janCode').addEventListener('change', () => applyJanMaster($('janCode').value.trim(), true))
+  $('janLookupButton').addEventListener('click', lookupJanProduct)
   $('scanButton').addEventListener('click', startScanner)
   $('stopScanButton').addEventListener('click', stopScanner)
   $('backupButton').addEventListener('click', exportBackup)
   $('importButton').addEventListener('click', () => $('importFile').click())
   $('importFile').addEventListener('change', importBackup)
   $('csvButton').addEventListener('click', exportCsv)
+  $('apiSettingsButton').addEventListener('click', openApiSettings)
+  $('closeApiSettingsButton').addEventListener('click', closeApiSettings)
+  $('saveApiSettingsButton').addEventListener('click', saveApiSettings)
+  $('clearApiSettingsButton').addEventListener('click', clearApiSettings)
 }
 
+
+
+function getJanMaster() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(JAN_MASTER_KEY) || '{}')
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveJanMasterEntry(item) {
+  const jan = String(item.jan_code || '').trim()
+  if (!jan) return
+  const master = getJanMaster()
+  const existing = master[jan] || {}
+  master[jan] = {
+    name: item.name || existing.name || '',
+    list_price: item.list_price !== null && item.list_price !== '' && item.list_price !== undefined
+      ? Number(item.list_price)
+      : (existing.list_price ?? null),
+    category: item.category || existing.category || '',
+  }
+  localStorage.setItem(JAN_MASTER_KEY, JSON.stringify(master))
+}
+
+function applyJanMaster(jan, notify = false) {
+  if (!jan) return false
+  const entry = getJanMaster()[jan]
+  if (!entry) return false
+  if (!$('name').value.trim() && entry.name) $('name').value = entry.name
+  if ($('listPrice').value === '' && entry.list_price !== null && entry.list_price !== undefined) {
+    $('listPrice').value = entry.list_price
+  }
+  if (!$('category').value.trim() && entry.category) $('category').value = entry.category
+  if (notify) setMessage($('janLookupMessage'), '登録済みJANマスターから商品情報を入力しました。')
+  return true
+}
+
+function getRakutenSettings() {
+  try {
+    const settings = JSON.parse(localStorage.getItem(RAKUTEN_SETTINGS_KEY) || '{}')
+    return { appId: settings.appId || '', accessKey: settings.accessKey || '' }
+  } catch {
+    return { appId: '', accessKey: '' }
+  }
+}
+
+function loadApiSettings() {
+  const settings = getRakutenSettings()
+  $('rakutenAppId').value = settings.appId
+  $('rakutenAccessKey').value = settings.accessKey
+}
+
+function openApiSettings() {
+  loadApiSettings()
+  show($('apiSettingsCard'))
+  $('rakutenAppId').focus()
+}
+
+function closeApiSettings() {
+  show($('apiSettingsCard'), false)
+}
+
+function saveApiSettings() {
+  const appId = $('rakutenAppId').value.trim()
+  const accessKey = $('rakutenAccessKey').value.trim()
+  if (!appId || !accessKey) {
+    setMessage($('pageError'), '楽天Web ServiceのApp IDとAccess Keyを両方入力してください。')
+    return
+  }
+  localStorage.setItem(RAKUTEN_SETTINGS_KEY, JSON.stringify({ appId, accessKey }))
+  setMessage($('pageError'))
+  setMessage($('pageSuccess'), '楽天API設定をこのPCに保存しました。')
+  setTimeout(() => setMessage($('pageSuccess')), 2200)
+  closeApiSettings()
+}
+
+function clearApiSettings() {
+  localStorage.removeItem(RAKUTEN_SETTINGS_KEY)
+  $('rakutenAppId').value = ''
+  $('rakutenAccessKey').value = ''
+  setMessage($('pageSuccess'), '楽天API設定を削除しました。')
+  setTimeout(() => setMessage($('pageSuccess')), 2200)
+}
+
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const callbackName = 'rakutenCallback_' + Date.now() + '_' + Math.random().toString(36).slice(2)
+    const script = document.createElement('script')
+    const timeout = setTimeout(() => cleanup(new Error('timeout')), 12000)
+
+    function cleanup(error, data) {
+      clearTimeout(timeout)
+      delete window[callbackName]
+      script.remove()
+      error ? reject(error) : resolve(data)
+    }
+
+    window[callbackName] = (data) => cleanup(null, data)
+    script.onerror = () => cleanup(new Error('network'))
+    script.src = url + '&callback=' + encodeURIComponent(callbackName)
+    document.head.appendChild(script)
+  })
+}
+
+function extractListPrice(product) {
+  let found = null
+
+  function walk(node) {
+    if (found !== null || node == null) return
+    if (Array.isArray(node)) {
+      node.forEach(walk)
+      return
+    }
+    if (typeof node !== 'object') return
+
+    const label = String(node.name ?? node.itemName ?? node.label ?? '')
+    const value = node.value ?? node.itemValue ?? node.val
+    if (/(メーカー希望小売価格|希望小売価格|定価)/.test(label) && value != null) {
+      const digits = String(value).replace(/[^0-9]/g, '')
+      if (digits) found = Number(digits)
+    }
+    Object.values(node).forEach(walk)
+  }
+
+  walk(product)
+  return found
+}
+
+async function lookupJanProduct() {
+  const jan = $('janCode').value.trim()
+  setMessage($('janLookupMessage'))
+  if (!/^\d{8}$|^\d{13}$/.test(jan)) {
+    return setMessage($('janLookupMessage'), 'JANコードは8桁または13桁で入力してください。')
+  }
+
+  const fromMaster = applyJanMaster(jan, false)
+  const settings = getRakutenSettings()
+  if (!settings.appId || !settings.accessKey) {
+    if (fromMaster) return setMessage($('janLookupMessage'), 'JANマスターから入力しました。楽天APIを設定すると商品名・相場も検索できます。')
+    openApiSettings()
+    return setMessage($('janLookupMessage'), '初回のみ楽天APIのApp IDとAccess Keyを設定してください。')
+  }
+
+  $('janLookupButton').disabled = true
+  $('janLookupButton').textContent = '取得中…'
+  try {
+    const params = new URLSearchParams({
+      applicationId: settings.appId,
+      accessKey: settings.accessKey,
+      format: 'json',
+      formatVersion: '2',
+      productCode: jan,
+      hits: '1',
+    })
+    const endpoint = 'https://openapi.rakuten.co.jp/ichibaproduct/api/Product/Search/20250801?' + params.toString()
+    const data = await jsonp(endpoint)
+
+    if (data?.error) throw new Error(data.error_description || data.error)
+    const product = Array.isArray(data?.items) ? data.items[0] : null
+    if (!product) {
+      return setMessage($('janLookupMessage'), fromMaster ? '楽天では見つかりませんでした。JANマスターの情報を使用しています。' : '楽天の商品価格ナビでは商品が見つかりませんでした。')
+    }
+
+    if (product.productName) $('name').value = product.productName
+    if (!$('category').value.trim() && product.genreName) $('category').value = product.genreName
+
+    const listPrice = extractListPrice(product)
+    if (listPrice !== null) $('listPrice').value = listPrice
+
+    const marketPrice = product.averagePrice ?? product.usedExcludeSalesMinPrice ?? product.salesMinPrice ?? null
+    if (marketPrice !== null) $('currentPrice').value = marketPrice
+
+    const master = getJanMaster()
+    master[jan] = {
+      ...(master[jan] || {}),
+      name: $('name').value.trim(),
+      category: $('category').value.trim(),
+      list_price: $('listPrice').value === '' ? (master[jan]?.list_price ?? null) : Number($('listPrice').value),
+    }
+    localStorage.setItem(JAN_MASTER_KEY, JSON.stringify(master))
+
+    const parts = ['商品情報を取得しました']
+    if (product.averagePrice != null) parts.push('楽天平均 ' + yen(product.averagePrice))
+    if (product.usedExcludeSalesMinPrice != null) parts.push('新品最安 ' + yen(product.usedExcludeSalesMinPrice))
+    if (listPrice === null) parts.push('定価は取得できないため必要なら手入力してください')
+    setMessage($('janLookupMessage'), parts.join(' / '))
+  } catch (error) {
+    console.error(error)
+    setMessage($('janLookupMessage'), '商品情報を取得できませんでした。API設定または通信状態をご確認ください。')
+  } finally {
+    $('janLookupButton').disabled = false
+    $('janLookupButton').textContent = '商品情報取得'
+  }
+}
 
 function loadLocal() {
   setMessage($('pageError'))
@@ -259,6 +465,7 @@ function openEditForm(id) {
   $('janCode').value = item.jan_code || ''
   $('category').value = item.category || ''
   $('purchaseDate').value = item.purchase_date || ''
+  $('listPrice').value = item.list_price ?? ''
   $('purchasePrice').value = hasPurchasePrice(item) ? item.purchase_price : ''
   $('quantity').value = item.quantity || 1
   $('currentPrice').value = item.current_price ?? ''
@@ -290,6 +497,7 @@ function saveItem(event) {
     jan_code: $('janCode').value.trim() || null,
     category: $('category').value.trim() || null,
     purchase_date: $('purchaseDate').value || null,
+    list_price: $('listPrice').value === '' ? null : Number($('listPrice').value),
     purchase_price: $('purchasePrice').value === '' ? null : Number($('purchasePrice').value),
     quantity: Math.max(1, Number($('quantity').value || 1)),
     current_price: $('currentPrice').value === '' ? null : Number($('currentPrice').value),
@@ -301,6 +509,7 @@ function saveItem(event) {
   if (existing) state.items = state.items.map((row) => row.id === item.id ? item : row)
   else state.items.unshift(item)
 
+  saveJanMasterEntry(item)
   persist(existing ? '更新しました。' : '登録しました。')
   closeForm()
   renderSummary()
@@ -334,6 +543,7 @@ function exportBackup() {
     version: 1,
     exported_at: new Date().toISOString(),
     items: state.items,
+    jan_master: getJanMaster(),
   }
   const stamp = today().replaceAll('-', '')
   downloadFile(`collection-backup-${stamp}.json`, JSON.stringify(payload, null, 2), 'application/json')
@@ -351,6 +561,9 @@ async function importBackup(event) {
     if (!Array.isArray(items)) throw new Error('invalid')
     if (!window.confirm(`バックアップの${items.length}件で現在のデータを置き換えますか？`)) return
     state.items = items
+    if (parsed?.jan_master && typeof parsed.jan_master === 'object') {
+      localStorage.setItem(JAN_MASTER_KEY, JSON.stringify(parsed.jan_master))
+    }
     persist('バックアップを復元しました。')
     renderSummary()
     renderItems()
@@ -366,7 +579,7 @@ function csvCell(value) {
 
 
 function exportCsv() {
-  const headers = ['商品名','JANコード','カテゴリ','購入日','購入単価','個数','購入総額','現在相場','現在評価額','損益','メモ']
+  const headers = ['商品名','JANコード','カテゴリ','購入日','定価','購入単価','個数','購入総額','現在相場','現在評価額','損益','メモ']
   const rows = state.items.map((item) => {
     const qty = Number(item.quantity || 0)
     const purchaseKnown = hasPurchasePrice(item)
@@ -376,7 +589,8 @@ function exportCsv() {
     const current = hasPrice ? Number(item.current_price || 0) : ''
     const currentTotal = hasPrice ? Number(current) * qty : ''
     const profit = hasPrice && purchaseKnown ? Number(currentTotal) - Number(purchaseTotal) : ''
-    return [item.name,item.jan_code,item.category,item.purchase_date,purchase,qty,purchaseTotal,current,currentTotal,profit,item.memo]
+    const listPrice = item.list_price ?? ''
+    return [item.name,item.jan_code,item.category,item.purchase_date,listPrice,purchase,qty,purchaseTotal,current,currentTotal,profit,item.memo]
   })
   const csv = '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
   const stamp = today().replaceAll('-', '')
@@ -409,6 +623,7 @@ async function scanLoop() {
     if (results?.[0]?.rawValue) {
       $('janCode').value = results[0].rawValue
       stopScanner()
+      applyJanMaster($('janCode').value.trim(), true)
       return
     }
   } catch {}
