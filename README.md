@@ -1,17 +1,38 @@
-# Collection Manager
+# Collection Manager - Personal
 
-コレクションの購入日・購入金額・個数・JANコード・現在相場を管理するWebアプリです。
+個人用のコレクション管理アプリです。一般公開・広告・収益化は行わない前提のローカル版です。
 
-## 構成
+## 使い方
 
-- フロント: Static HTML / CSS / JavaScript
-- 認証・DB: Supabase
-- 公開先: Cloudflare Pages
+1. `public` フォルダをPCに置く
+2. `public/index.html` をChromeまたはEdgeで開く
+3. 商品を登録する
 
-## Cloudflare Pages 設定
+サーバー、Vercel、Cloudflare、Supabaseへの接続は不要です。
 
-- Production branch: `main`
-- Build command: `exit 0`
-- Build output directory: `public`
+## 保存先
 
-依存パッケージのビルドを使わないため、初期運用は無料かつシンプルです。
+データはブラウザの localStorage に保存されます。
+ブラウザデータを削除すると消えるため、定期的に「バックアップ」からJSONを書き出してください。
+
+- バックアップ: 全データをJSON保存
+- 復元: JSONバックアップから全データを復元
+- CSV出力: Excel等で確認できるCSVを書き出し
+
+## 管理項目
+
+- 商品名
+- JANコード
+- カテゴリ
+- 購入日
+- 購入単価
+- 個数
+- 現在相場
+- メモ
+- 購入総額 / 現在評価額 / 評価損益
+
+JANまたは商品名からGoogle、メルカリ、Yahoo!オークション、楽天市場をすぐ検索できます。
+
+## 補足
+
+既存のSupabaseプロジェクトは将来の端末間同期用として残していますが、現在の個人版アプリからは接続しません。
