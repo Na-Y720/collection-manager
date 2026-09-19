@@ -377,7 +377,7 @@ function exportCsv() {
   setTimeout(() => setMessage($('pageSuccess')), 2200)
 }
 
-function startScanner() {
+async function startScanner() {
   setMessage($('scannerMessage'))
   if (!('BarcodeDetector' in window)) return setMessage($('scannerMessage'), 'このブラウザはカメラJAN読取に未対応です。JANを手入力してください。')
   if (!navigator.mediaDevices?.getUserMedia) return setMessage($('scannerMessage'), 'この環境ではカメラを起動できません。JANを手入力してください。')
