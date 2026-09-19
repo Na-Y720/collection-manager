@@ -2,6 +2,67 @@ const STORAGE_KEY = 'collection-manager-personal-v1'
 const $ = (id) => document.getElementById(id)
 const state = { items: [], editingId: null, stream: null, scanning: false }
 
+const SEED_KEY = 'collection-manager-seed-20260919-v1'
+const SEED_ITEMS = [
+  { name: '30th CELEBRATION シュリンクあり', category: 'ポケカ BOX', quantity: 4, purchase_price: null, memo: '未開封・シュリンクあり' },
+  { name: '30th プレミアムデッキセット エーフィ・ブラッキー', category: 'ポケカ', quantity: 2, purchase_price: null, memo: '未開封' },
+  { name: 'FUTURISTIC BOX', category: 'ポケカ BOX', quantity: 1, purchase_price: null, memo: '未開封' },
+  { name: 'MEGAドリームex', category: 'ポケカ BOX', quantity: 2, purchase_price: null, memo: '未開封' },
+  { name: 'ニンジャスピナー', category: 'ポケカ BOX', quantity: 2, purchase_price: null, memo: '未開封' },
+  { name: 'アビスアイ', category: 'ポケカ BOX', quantity: 1, purchase_price: null, memo: '未開封' },
+  { name: 'インフェルノX', category: 'ポケカ BOX', quantity: 1, purchase_price: null, memo: '未開封' },
+  { name: 'トウホク', category: 'ポケカ', quantity: 2, purchase_price: null, memo: '' },
+  { name: 'フクオカ', category: 'ポケカ', quantity: 1, purchase_price: null, memo: '' },
+
+  { name: 'ダークライ＆クレセリアLEGEND 片側', category: 'ポケカ シングル', quantity: 1, purchase_price: null, memo: '30th CELEBRATION開封品' },
+  { name: 'アルセウスVSTAR 復刻', category: 'ポケカ シングル', quantity: 1, purchase_price: null, memo: '30th CELEBRATION開封品' },
+  { name: 'ラプラス AR', category: 'ポケカ シングル', quantity: 1, purchase_price: null, memo: '30th CELEBRATION開封品' },
+  { name: 'ガラルニャース AR', category: 'ポケカ シングル', quantity: 1, purchase_price: null, memo: '30th CELEBRATION開封品' },
+  { name: 'モルペコ AR', category: 'ポケカ シングル', quantity: 1, purchase_price: null, memo: '30th CELEBRATION開封品' },
+  { name: 'サンダー AR', category: 'ポケカ シングル', quantity: 1, purchase_price: null, memo: '30th CELEBRATION開封品' },
+
+  { name: 'EB-100 エナジーマーカー', category: 'ドラゴンボール カード', quantity: 1, purchase_price: 4730, memo: '定価購入' },
+  { name: '配布 天使悟空', category: 'ドラゴンボール カード', quantity: 2, purchase_price: 0, memo: '配布品・取得原価0円' },
+
+  { name: 'SMSP 悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
+  { name: 'SMSP ベジータ', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
+  { name: 'バイバイ悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
+  { name: 'ダイマツリ 悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
+  { name: 'ダイマツリ 超悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
+  { name: 'ダイマツリ ベジータ', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
+  { name: 'リアルマッコイ ブルマ 2026復刻', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
+
+  { name: '一番くじ ラストワン 筋肉ビスケ', category: 'HUNTER×HUNTER フィギュア', quantity: 1, purchase_price: 0, memo: '他景品で回収済み・投資額0円' },
+
+  { name: 'P-043 ルフィ', category: 'ONE PIECE カード', quantity: 1, purchase_price: 2000, memo: '' },
+  { name: 'ジャンプ応募者全員サービス 肉ルフィ', category: 'ONE PIECE', quantity: 1, purchase_price: null, memo: '応募者全員サービス' },
+  { name: 'Vジャンプ 応募品', category: 'ONE PIECE', quantity: 1, purchase_price: null, memo: '応募済み' },
+  { name: 'NBAコラボ ルフィ（レイカーズ）', category: 'ONE PIECE フィギュア', quantity: 1, purchase_price: null, memo: '' },
+
+  { name: 'うしおととら FC 箱説付き', category: 'ゲーム', quantity: 1, purchase_price: null, memo: '小学生時のクリスマスプレゼント・売却対象外' },
+]
+
+function makeSeedItems() {
+  const base = Date.now()
+  return SEED_ITEMS.map((item, index) => ({
+    id: newId(),
+    name: item.name,
+    jan_code: null,
+    category: item.category,
+    purchase_date: null,
+    purchase_price: item.purchase_price,
+    quantity: item.quantity,
+    current_price: null,
+    memo: item.memo || null,
+    created_at: new Date(base - index * 1000).toISOString(),
+    updated_at: new Date(base - index * 1000).toISOString(),
+  }))
+}
+
+function hasPurchasePrice(item) {
+  return item.purchase_price !== null && item.purchase_price !== '' && item.purchase_price !== undefined
+}
+
 const yen = (value) => new Intl.NumberFormat('ja-JP', {
   style: 'currency', currency: 'JPY', maximumFractionDigits: 0,
 }).format(Number(value || 0))
@@ -39,12 +100,22 @@ function bindEvents() {
   $('csvButton').addEventListener('click', exportCsv)
 }
 
+
 function loadLocal() {
   setMessage($('pageError'))
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
+    const seedDone = localStorage.getItem(SEED_KEY) === '1'
     state.items = raw ? JSON.parse(raw) : []
     if (!Array.isArray(state.items)) state.items = []
+
+    if (!seedDone) {
+      if (state.items.length === 0) {
+        state.items = makeSeedItems()
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items))
+      }
+      localStorage.setItem(SEED_KEY, '1')
+    }
   } catch {
     state.items = []
     setMessage($('pageError'), '保存データを読み込めませんでした。バックアップから復元してください。')
@@ -59,31 +130,47 @@ function persist(message = '') {
   }
 }
 
+
 function renderSummary() {
   const totals = state.items.reduce((acc, item) => {
     const qty = Number(item.quantity || 0)
-    const purchase = Number(item.purchase_price || 0) * qty
-    acc.purchase += purchase
+    const purchaseKnown = hasPurchasePrice(item)
+    const currentKnown = item.current_price !== null && item.current_price !== '' && item.current_price !== undefined
+    const purchase = purchaseKnown ? Number(item.purchase_price) * qty : 0
+
     acc.units += qty
-    if (item.current_price !== null && item.current_price !== '' && item.current_price !== undefined) {
+    if (purchaseKnown) {
+      acc.purchase += purchase
+      acc.purchaseKnown += 1
+    }
+    if (currentKnown) {
       acc.current += Number(item.current_price || 0) * qty
-      acc.valuedPurchase += purchase
       acc.valued += 1
     }
+    if (purchaseKnown && currentKnown) {
+      acc.profitCurrent += Number(item.current_price || 0) * qty
+      acc.profitPurchase += purchase
+      acc.profitKnown += 1
+    }
     return acc
-  }, { purchase: 0, current: 0, valuedPurchase: 0, units: 0, valued: 0 })
+  }, { purchase: 0, current: 0, profitPurchase: 0, profitCurrent: 0, units: 0, valued: 0, purchaseKnown: 0, profitKnown: 0 })
 
-  const profit = totals.current - totals.valuedPurchase
-  const rate = totals.valuedPurchase > 0 ? (profit / totals.valuedPurchase) * 100 : 0
+  const profit = totals.profitCurrent - totals.profitPurchase
+  const rate = totals.profitPurchase > 0 ? (profit / totals.profitPurchase) * 100 : 0
+
   $('purchaseTotal').textContent = yen(totals.purchase)
+  $('purchaseKnownCount').textContent = `${totals.purchaseKnown}/${state.items.length}商品の購入額を設定済み`
   $('currentTotal').textContent = yen(totals.current)
   $('valuedCount').textContent = `${totals.valued}/${state.items.length}商品を評価済み`
   $('profitTotal').textContent = `${profit >= 0 ? '+' : ''}${yen(profit)}`
   $('profitTotal').className = profit >= 0 ? 'gain' : 'loss'
-  $('profitRate').textContent = `${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%`
+  $('profitRate').textContent = totals.profitKnown
+    ? `${totals.profitKnown}商品 / ${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%`
+    : '購入額と現在相場が揃うと表示'
   $('unitTotal').textContent = `${totals.units} 個`
   $('itemCount').textContent = `${state.items.length}登録`
 }
+
 
 function renderItems() {
   const q = $('searchInput').value.trim().toLowerCase()
@@ -100,11 +187,13 @@ function renderItems() {
 
   $('itemGrid').innerHTML = items.map((item) => {
     const qty = Number(item.quantity || 0)
-    const purchaseTotal = Number(item.purchase_price || 0) * qty
+    const purchaseKnown = hasPurchasePrice(item)
+    const purchaseTotal = purchaseKnown ? Number(item.purchase_price) * qty : null
     const hasPrice = item.current_price !== null && item.current_price !== '' && item.current_price !== undefined
     const currentTotal = hasPrice ? Number(item.current_price || 0) * qty : null
-    const profit = hasPrice ? currentTotal - purchaseTotal : null
+    const profit = hasPrice && purchaseKnown ? currentTotal - purchaseTotal : null
     const query = encodeURIComponent(item.jan_code || item.name)
+
     return `
       <article class="item-card">
         <div class="item-head">
@@ -119,12 +208,12 @@ function renderItems() {
           </div>
         </div>
         <div class="item-metrics">
-          <div><span>購入単価</span><strong>${yen(item.purchase_price)}</strong></div>
+          <div><span>購入単価</span><strong>${purchaseKnown ? yen(item.purchase_price) : '未設定'}</strong></div>
           <div><span>個数</span><strong>${qty}</strong></div>
-          <div><span>購入総額</span><strong>${yen(purchaseTotal)}</strong></div>
+          <div><span>購入総額</span><strong>${purchaseKnown ? yen(purchaseTotal) : '未設定'}</strong></div>
           <div><span>現在相場</span><strong>${hasPrice ? yen(item.current_price) : '未登録'}</strong></div>
         </div>
-        ${hasPrice ? `<div class="profit-line ${profit >= 0 ? 'gain-bg' : 'loss-bg'}">評価損益 <strong>${profit >= 0 ? '+' : ''}${yen(profit)}</strong></div>` : ''}
+        ${profit !== null ? `<div class="profit-line ${profit >= 0 ? 'gain-bg' : 'loss-bg'}">評価損益 <strong>${profit >= 0 ? '+' : ''}${yen(profit)}</strong></div>` : ''}
         ${(item.purchase_date || item.memo) ? `<div class="item-notes">${item.purchase_date ? `<span>購入日 ${escapeHtml(item.purchase_date)}</span>` : ''}${item.memo ? `<p>${escapeHtml(item.memo)}</p>` : ''}</div>` : ''}
         <div class="market-links">
           <span>現在相場を検索</span>
@@ -162,7 +251,7 @@ function openEditForm(id) {
   $('janCode').value = item.jan_code || ''
   $('category').value = item.category || ''
   $('purchaseDate').value = item.purchase_date || ''
-  $('purchasePrice').value = item.purchase_price ?? ''
+  $('purchasePrice').value = hasPurchasePrice(item) ? item.purchase_price : ''
   $('quantity').value = item.quantity || 1
   $('currentPrice').value = item.current_price ?? ''
   $('memo').value = item.memo || ''
@@ -193,7 +282,7 @@ function saveItem(event) {
     jan_code: $('janCode').value.trim() || null,
     category: $('category').value.trim() || null,
     purchase_date: $('purchaseDate').value || null,
-    purchase_price: Number($('purchasePrice').value || 0),
+    purchase_price: $('purchasePrice').value === '' ? null : Number($('purchasePrice').value),
     quantity: Math.max(1, Number($('quantity').value || 1)),
     current_price: $('currentPrice').value === '' ? null : Number($('currentPrice').value),
     memo: $('memo').value.trim() || null,
@@ -267,16 +356,18 @@ function csvCell(value) {
   return '"' + text.replaceAll('"', '""') + '"'
 }
 
+
 function exportCsv() {
   const headers = ['商品名','JANコード','カテゴリ','購入日','購入単価','個数','購入総額','現在相場','現在評価額','損益','メモ']
   const rows = state.items.map((item) => {
     const qty = Number(item.quantity || 0)
-    const purchase = Number(item.purchase_price || 0)
-    const purchaseTotal = purchase * qty
+    const purchaseKnown = hasPurchasePrice(item)
+    const purchase = purchaseKnown ? Number(item.purchase_price) : ''
+    const purchaseTotal = purchaseKnown ? Number(item.purchase_price) * qty : ''
     const hasPrice = item.current_price !== null && item.current_price !== '' && item.current_price !== undefined
     const current = hasPrice ? Number(item.current_price || 0) : ''
     const currentTotal = hasPrice ? Number(current) * qty : ''
-    const profit = hasPrice ? Number(currentTotal) - purchaseTotal : ''
+    const profit = hasPrice && purchaseKnown ? Number(currentTotal) - Number(purchaseTotal) : ''
     return [item.name,item.jan_code,item.category,item.purchase_date,purchase,qty,purchaseTotal,current,currentTotal,profit,item.memo]
   })
   const csv = '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
@@ -286,7 +377,7 @@ function exportCsv() {
   setTimeout(() => setMessage($('pageSuccess')), 2200)
 }
 
-async function startScanner() {
+function startScanner() {
   setMessage($('scannerMessage'))
   if (!('BarcodeDetector' in window)) return setMessage($('scannerMessage'), 'このブラウザはカメラJAN読取に未対応です。JANを手入力してください。')
   if (!navigator.mediaDevices?.getUserMedia) return setMessage($('scannerMessage'), 'この環境ではカメラを起動できません。JANを手入力してください。')
