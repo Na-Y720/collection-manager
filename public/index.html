@@ -4,43 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#111827" />
-  <meta name="description" content="購入金額と現在相場をまとめて管理できるコレクション管理アプリ" />
-  <title>Collection Manager</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <meta name="description" content="個人用コレクション管理アプリ" />
+  <title>My Collection Manager</title>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div id="loading" class="center-screen">読み込み中...</div>
-
-  <main id="authView" class="auth-shell hidden">
-    <section class="auth-card">
-      <div class="brand-mark">CM</div>
-      <h1>Collection Manager</h1>
-      <p class="muted">買った物と現在相場を、ひとつの場所で。</p>
-      <div class="auth-tabs">
-        <button id="signinTab" class="tab active" type="button">ログイン</button>
-        <button id="signupTab" class="tab" type="button">新規登録</button>
-      </div>
-      <form id="authForm" class="stack">
-        <label>メールアドレス<input id="email" type="email" autocomplete="email" required /></label>
-        <label>パスワード<input id="password" type="password" autocomplete="current-password" minlength="6" required /></label>
-        <div id="authError" class="error-box hidden"></div>
-        <div id="authSuccess" class="success-box hidden"></div>
-        <button id="authSubmit" class="primary" type="submit">ログイン</button>
-      </form>
-    </section>
-  </main>
-
-  <main id="appView" class="app-shell hidden">
+  <main id="appView" class="app-shell">
     <header class="topbar">
-      <div><div class="eyebrow">COLLECTION MANAGER</div><h1>マイコレクション</h1></div>
-      <button id="signoutButton" class="secondary" type="button">ログアウト</button>
+      <div>
+        <div class="eyebrow">PERSONAL COLLECTION</div>
+        <h1>マイコレクション</h1>
+        <p class="local-note">この端末内に保存する個人用モード</p>
+      </div>
+      <div class="data-actions">
+        <button id="backupButton" class="secondary" type="button">バックアップ</button>
+        <button id="importButton" class="secondary" type="button">復元</button>
+        <button id="csvButton" class="secondary" type="button">CSV出力</button>
+        <input id="importFile" type="file" accept="application/json,.json" class="hidden" />
+      </div>
     </header>
+
     <div id="pageError" class="error-box page-error hidden"></div>
+    <div id="pageSuccess" class="success-box page-error hidden"></div>
 
     <section class="summary-grid">
       <article class="summary-card"><span>購入総額</span><strong id="purchaseTotal">¥0</strong></article>
       <article class="summary-card"><span>現在評価額</span><strong id="currentTotal">¥0</strong><small id="valuedCount">0/0商品を評価済み</small></article>
-      <article class="summary-card"><span>含み損益</span><strong id="profitTotal">¥0</strong><small id="profitRate">0.0%</small></article>
+      <article class="summary-card"><span>評価済み損益</span><strong id="profitTotal">¥0</strong><small id="profitRate">0.0%</small></article>
       <article class="summary-card"><span>保有数</span><strong id="unitTotal">0 個</strong><small id="itemCount">0登録</small></article>
     </section>
 
@@ -90,6 +80,6 @@
       <button id="stopScanButton" class="secondary" type="button">閉じる</button>
     </div>
   </div>
-  <script type="module" src="/app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
