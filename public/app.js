@@ -422,6 +422,7 @@ function renderItems() {
           </div>
         </div>
         <div class="item-metrics">
+          <div><span>定価</span><strong>${item.list_price !== null && item.list_price !== undefined && item.list_price !== '' ? yen(item.list_price) : '未設定'}</strong></div>
           <div><span>購入単価</span><strong>${purchaseKnown ? yen(item.purchase_price) : '未設定'}</strong></div>
           <div><span>個数</span><strong>${qty}</strong></div>
           <div><span>購入総額</span><strong>${purchaseKnown ? yen(purchaseTotal) : '未設定'}</strong></div>
