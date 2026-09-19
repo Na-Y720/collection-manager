@@ -1,11 +1,6 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.116.0'
-
-const SUPABASE_URL = 'https://qflmmiyvbmubinqqphin.supabase.co'
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_J3z6K_EZe6itArFsQm3nkA_LDxXGNc8'
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-
+const STORAGE_KEY = 'collection-manager-personal-v1'
 const $ = (id) => document.getElementById(id)
-const state = { session: null, items: [], authMode: 'signin', editingId: null, stream: null, scanning: false }
+const state = { items: [], editingId: null, stream: null, scanning: false }
 
 const yen = (value) => new Intl.NumberFormat('ja-JP', {
   style: 'currency', currency: 'JPY', maximumFractionDigits: 0,
@@ -17,21 +12,19 @@ function today() { return new Date().toISOString().slice(0, 10) }
 function escapeHtml(value = '') {
   return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]))
 }
+function newId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
 
-async function init() {
+function init() {
+  loadLocal()
   bindEvents()
   $('purchaseDate').value = today()
-  const { data } = await supabase.auth.getSession()
-  await applySession(data.session)
-  supabase.auth.onAuthStateChange(async (_event, session) => applySession(session))
-  show($('loading'), false)
+  renderSummary()
+  renderItems()
 }
 
 function bindEvents() {
-  $('signinTab').addEventListener('click', () => setAuthMode('signin'))
-  $('signupTab').addEventListener('click', () => setAuthMode('signup'))
-  $('authForm').addEventListener('submit', handleAuth)
-  $('signoutButton').addEventListener('click', () => supabase.auth.signOut())
   $('addButton').addEventListener('click', openNewForm)
   $('closeFormButton').addEventListener('click', closeForm)
   $('cancelButton').addEventListener('click', closeForm)
@@ -40,71 +33,48 @@ function bindEvents() {
   $('janCode').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '') })
   $('scanButton').addEventListener('click', startScanner)
   $('stopScanButton').addEventListener('click', stopScanner)
+  $('backupButton').addEventListener('click', exportBackup)
+  $('importButton').addEventListener('click', () => $('importFile').click())
+  $('importFile').addEventListener('change', importBackup)
+  $('csvButton').addEventListener('click', exportCsv)
 }
 
-async function applySession(session) {
-  state.session = session
-  show($('authView'), !session)
-  show($('appView'), Boolean(session))
-  if (session) await loadItems()
-  else { state.items = []; renderSummary(); renderItems() }
-}
-
-function setAuthMode(mode) {
-  state.authMode = mode
-  $('signinTab').classList.toggle('active', mode === 'signin')
-  $('signupTab').classList.toggle('active', mode === 'signup')
-  $('authSubmit').textContent = mode === 'signin' ? 'ログイン' : '無料アカウントを作成'
-  $('password').autocomplete = mode === 'signin' ? 'current-password' : 'new-password'
-  setMessage($('authError'))
-  setMessage($('authSuccess'))
-}
-
-async function handleAuth(event) {
-  event.preventDefault()
-  setMessage($('authError'))
-  setMessage($('authSuccess'))
-  const email = $('email').value.trim()
-  const password = $('password').value
-  if (password.length < 6) return setMessage($('authError'), 'パスワードは6文字以上で入力してください。')
-
-  $('authSubmit').disabled = true
-  if (state.authMode === 'signup') {
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: window.location.origin },
-    })
-    if (error) setMessage($('authError'), error.message)
-    else if (!data.session) setMessage($('authSuccess'), '確認メールを送信しました。メール内のリンクを開いて登録を完了してください。')
-  } else {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setMessage($('authError'), 'ログインできませんでした。メールアドレスとパスワードをご確認ください。')
-  }
-  $('authSubmit').disabled = false
-}
-
-async function loadItems() {
+function loadLocal() {
   setMessage($('pageError'))
-  const { data, error } = await supabase.from('collections').select('*').order('created_at', { ascending: false })
-  if (error) setMessage($('pageError'), error.message)
-  else state.items = data || []
-  renderSummary()
-  renderItems()
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    state.items = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(state.items)) state.items = []
+  } catch {
+    state.items = []
+    setMessage($('pageError'), '保存データを読み込めませんでした。バックアップから復元してください。')
+  }
+}
+
+function persist(message = '') {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items))
+  if (message) {
+    setMessage($('pageSuccess'), message)
+    setTimeout(() => setMessage($('pageSuccess')), 2200)
+  }
 }
 
 function renderSummary() {
   const totals = state.items.reduce((acc, item) => {
     const qty = Number(item.quantity || 0)
-    acc.purchase += Number(item.purchase_price || 0) * qty
+    const purchase = Number(item.purchase_price || 0) * qty
+    acc.purchase += purchase
     acc.units += qty
-    if (item.current_price !== null) {
+    if (item.current_price !== null && item.current_price !== '' && item.current_price !== undefined) {
       acc.current += Number(item.current_price || 0) * qty
+      acc.valuedPurchase += purchase
       acc.valued += 1
     }
     return acc
-  }, { purchase: 0, current: 0, units: 0, valued: 0 })
-  const profit = totals.current - totals.purchase
-  const rate = totals.purchase > 0 ? (profit / totals.purchase) * 100 : 0
+  }, { purchase: 0, current: 0, valuedPurchase: 0, units: 0, valued: 0 })
+
+  const profit = totals.current - totals.valuedPurchase
+  const rate = totals.valuedPurchase > 0 ? (profit / totals.valuedPurchase) * 100 : 0
   $('purchaseTotal').textContent = yen(totals.purchase)
   $('currentTotal').textContent = yen(totals.current)
   $('valuedCount').textContent = `${totals.valued}/${state.items.length}商品を評価済み`
@@ -117,8 +87,10 @@ function renderSummary() {
 
 function renderItems() {
   const q = $('searchInput').value.trim().toLowerCase()
-  const items = state.items.filter((item) => !q || [item.name, item.jan_code, item.category, item.memo]
-    .filter(Boolean).some((value) => String(value).toLowerCase().includes(q)))
+  const items = state.items
+    .filter((item) => !q || [item.name, item.jan_code, item.category, item.memo]
+      .filter(Boolean).some((value) => String(value).toLowerCase().includes(q)))
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
 
   show($('emptyState'), items.length === 0)
   if (items.length === 0) {
@@ -129,7 +101,7 @@ function renderItems() {
   $('itemGrid').innerHTML = items.map((item) => {
     const qty = Number(item.quantity || 0)
     const purchaseTotal = Number(item.purchase_price || 0) * qty
-    const hasPrice = item.current_price !== null
+    const hasPrice = item.current_price !== null && item.current_price !== '' && item.current_price !== undefined
     const currentTotal = hasPrice ? Number(item.current_price || 0) * qty : null
     const profit = hasPrice ? currentTotal - purchaseTotal : null
     const query = encodeURIComponent(item.jan_code || item.name)
@@ -201,51 +173,123 @@ function openEditForm(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-function closeForm() { state.editingId = null; show($('formCard'), false); setMessage($('scannerMessage')); stopScanner() }
+function closeForm() {
+  state.editingId = null
+  show($('formCard'), false)
+  setMessage($('scannerMessage'))
+  stopScanner()
+}
 
-async function saveItem(event) {
+function saveItem(event) {
   event.preventDefault()
   setMessage($('pageError'))
-  if (!state.session?.user?.id) return
   const name = $('name').value.trim()
   if (!name) return setMessage($('pageError'), '商品名を入力してください。')
 
-  const payload = {
-    user_id: state.session.user.id,
+  const existing = state.editingId ? state.items.find((row) => row.id === state.editingId) : null
+  const item = {
+    id: existing?.id || newId(),
     name,
     jan_code: $('janCode').value.trim() || null,
     category: $('category').value.trim() || null,
     purchase_date: $('purchaseDate').value || null,
     purchase_price: Number($('purchasePrice').value || 0),
-    quantity: Number($('quantity').value || 1),
+    quantity: Math.max(1, Number($('quantity').value || 1)),
     current_price: $('currentPrice').value === '' ? null : Number($('currentPrice').value),
     memo: $('memo').value.trim() || null,
+    created_at: existing?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
-  $('saveButton').disabled = true
-  const request = state.editingId
-    ? supabase.from('collections').update(payload).eq('id', state.editingId)
-    : supabase.from('collections').insert(payload)
-  const { error } = await request
-  $('saveButton').disabled = false
-  if (error) return setMessage($('pageError'), error.message)
+  if (existing) state.items = state.items.map((row) => row.id === item.id ? item : row)
+  else state.items.unshift(item)
+
+  persist(existing ? '更新しました。' : '登録しました。')
   closeForm()
-  await loadItems()
+  renderSummary()
+  renderItems()
 }
 
-async function deleteItem(id) {
+function deleteItem(id) {
   const item = state.items.find((row) => row.id === id)
   if (!item || !window.confirm(`「${item.name}」を削除しますか？`)) return
-  const { error } = await supabase.from('collections').delete().eq('id', id)
-  if (error) return setMessage($('pageError'), error.message)
   state.items = state.items.filter((row) => row.id !== id)
-  renderSummary(); renderItems()
+  persist('削除しました。')
+  renderSummary()
+  renderItems()
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function exportBackup() {
+  const payload = {
+    app: 'collection-manager-personal',
+    version: 1,
+    exported_at: new Date().toISOString(),
+    items: state.items,
+  }
+  const stamp = today().replaceAll('-', '')
+  downloadFile(`collection-backup-${stamp}.json`, JSON.stringify(payload, null, 2), 'application/json')
+  setMessage($('pageSuccess'), 'バックアップを書き出しました。')
+  setTimeout(() => setMessage($('pageSuccess')), 2200)
+}
+
+async function importBackup(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  try {
+    const parsed = JSON.parse(await file.text())
+    const items = Array.isArray(parsed) ? parsed : parsed.items
+    if (!Array.isArray(items)) throw new Error('invalid')
+    if (!window.confirm(`バックアップの${items.length}件で現在のデータを置き換えますか？`)) return
+    state.items = items
+    persist('バックアップを復元しました。')
+    renderSummary()
+    renderItems()
+  } catch {
+    setMessage($('pageError'), 'バックアップファイルを読み込めませんでした。')
+  }
+}
+
+function csvCell(value) {
+  const text = value == null ? '' : String(value)
+  return '"' + text.replaceAll('"', '""') + '"'
+}
+
+function exportCsv() {
+  const headers = ['商品名','JANコード','カテゴリ','購入日','購入単価','個数','購入総額','現在相場','現在評価額','損益','メモ']
+  const rows = state.items.map((item) => {
+    const qty = Number(item.quantity || 0)
+    const purchase = Number(item.purchase_price || 0)
+    const purchaseTotal = purchase * qty
+    const hasPrice = item.current_price !== null && item.current_price !== '' && item.current_price !== undefined
+    const current = hasPrice ? Number(item.current_price || 0) : ''
+    const currentTotal = hasPrice ? Number(current) * qty : ''
+    const profit = hasPrice ? Number(currentTotal) - purchaseTotal : ''
+    return [item.name,item.jan_code,item.category,item.purchase_date,purchase,qty,purchaseTotal,current,currentTotal,profit,item.memo]
+  })
+  const csv = '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+  const stamp = today().replaceAll('-', '')
+  downloadFile(`collection-${stamp}.csv`, csv, 'text/csv;charset=utf-8')
+  setMessage($('pageSuccess'), 'CSVを書き出しました。')
+  setTimeout(() => setMessage($('pageSuccess')), 2200)
 }
 
 async function startScanner() {
   setMessage($('scannerMessage'))
   if (!('BarcodeDetector' in window)) return setMessage($('scannerMessage'), 'このブラウザはカメラJAN読取に未対応です。JANを手入力してください。')
+  if (!navigator.mediaDevices?.getUserMedia) return setMessage($('scannerMessage'), 'この環境ではカメラを起動できません。JANを手入力してください。')
   try {
     state.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
     $('scannerVideo').srcObject = state.stream
@@ -268,7 +312,7 @@ async function scanLoop() {
       stopScanner()
       return
     }
-  } catch { /* 次フレームで再試行 */ }
+  } catch {}
   if (state.scanning) requestAnimationFrame(scanLoop)
 }
 
@@ -276,11 +320,8 @@ function stopScanner() {
   state.scanning = false
   state.stream?.getTracks().forEach((track) => track.stop())
   state.stream = null
-  $('scannerVideo').srcObject = null
+  if ($('scannerVideo')) $('scannerVideo').srcObject = null
   show($('scannerOverlay'), false)
 }
 
-init().catch((error) => {
-  console.error(error)
-  $('loading').textContent = '起動に失敗しました。ページを再読み込みしてください。'
-})
+init()
