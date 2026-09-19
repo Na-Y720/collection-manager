@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id)
 const state = { items: [], editingId: null, stream: null, scanning: false }
 
 const SEED_KEY = 'collection-manager-seed-20260919-v1'
+const CLEANUP_DAIMA_KEY = 'collection-manager-cleanup-daima-duplicates-v1'
 const SEED_ITEMS = [
   { name: '30th CELEBRATION シュリンクあり', category: 'ポケカ BOX', quantity: 4, purchase_price: null, memo: '未開封・シュリンクあり' },
   { name: '30th プレミアムデッキセット エーフィ・ブラッキー', category: 'ポケカ', quantity: 2, purchase_price: null, memo: '未開封' },
@@ -27,9 +28,6 @@ const SEED_ITEMS = [
   { name: 'SMSP 悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
   { name: 'SMSP ベジータ', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
   { name: 'バイバイ悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
-  { name: 'ダイマツリ 悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
-  { name: 'ダイマツリ 超悟空', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
-  { name: 'ダイマツリ ベジータ', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
   { name: 'リアルマッコイ ブルマ 2026復刻', category: 'ドラゴンボール フィギュア', quantity: 1, purchase_price: null, memo: '' },
 
   { name: '一番くじ ラストワン 筋肉ビスケ', category: 'HUNTER×HUNTER フィギュア', quantity: 1, purchase_price: 0, memo: '他景品で回収済み・投資額0円' },
@@ -115,6 +113,16 @@ function loadLocal() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items))
       }
       localStorage.setItem(SEED_KEY, '1')
+    }
+
+    if (localStorage.getItem(CLEANUP_DAIMA_KEY) !== '1') {
+      const duplicateNames = new Set(['ダイマツリ 悟空', 'ダイマツリ 超悟空', 'ダイマツリ ベジータ'])
+      const before = state.items.length
+      state.items = state.items.filter((item) => !duplicateNames.has(item.name))
+      if (state.items.length !== before) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items))
+      }
+      localStorage.setItem(CLEANUP_DAIMA_KEY, '1')
     }
   } catch {
     state.items = []
