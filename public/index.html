@@ -20,12 +20,29 @@
         <button id="backupButton" class="secondary" type="button">バックアップ</button>
         <button id="importButton" class="secondary" type="button">復元</button>
         <button id="csvButton" class="secondary" type="button">CSV出力</button>
+        <button id="apiSettingsButton" class="secondary" type="button">楽天API設定</button>
         <input id="importFile" type="file" accept="application/json,.json" class="hidden" />
       </div>
     </header>
 
     <div id="pageError" class="error-box page-error hidden"></div>
     <div id="pageSuccess" class="success-box page-error hidden"></div>
+
+    <section id="apiSettingsCard" class="form-card api-settings hidden">
+      <div class="section-heading">
+        <div><span class="eyebrow">RAKUTEN API</span><h2>JAN商品情報取得の設定</h2></div>
+        <button id="closeApiSettingsButton" class="icon-button" type="button" aria-label="閉じる">×</button>
+      </div>
+      <div class="form-grid">
+        <label>App ID<input id="rakutenAppId" autocomplete="off" placeholder="楽天Web ServiceのApp ID" /></label>
+        <label>Access Key<input id="rakutenAccessKey" type="password" autocomplete="off" placeholder="Access Key" /></label>
+        <div class="span-2 api-help">キーはこのPCのブラウザ内だけに保存します。GitHubやバックアップJSONには含めません。</div>
+        <div class="form-actions span-2">
+          <button id="clearApiSettingsButton" class="secondary" type="button">設定削除</button>
+          <button id="saveApiSettingsButton" class="primary" type="button">保存</button>
+        </div>
+      </div>
+    </section>
 
     <section class="summary-grid">
       <article class="summary-card"><span>購入総額</span><strong id="purchaseTotal">¥0</strong><small id="purchaseKnownCount">0/0商品の購入額を設定済み</small></article>
@@ -47,14 +64,17 @@
       <form id="collectionForm" class="form-grid">
         <label class="span-2">商品名<input id="name" required placeholder="例：30th CELEBRATION BOX" /></label>
         <label>JANコード
-          <div class="input-with-button">
+          <div class="jan-input-actions">
             <input id="janCode" inputmode="numeric" placeholder="JANを入力" />
+            <button id="janLookupButton" class="lookup-button" type="button" title="JANから商品情報取得">商品情報取得</button>
             <button id="scanButton" class="scan-button" type="button" title="カメラでJAN読取">📷</button>
           </div>
+          <small id="janLookupMessage" class="scanner-message hidden"></small>
           <small id="scannerMessage" class="scanner-message hidden"></small>
         </label>
         <label>カテゴリ<input id="category" placeholder="ポケカ / フィギュア等" /></label>
         <label>購入日<input id="purchaseDate" type="date" /></label>
+        <label>定価（1個）<input id="listPrice" type="number" min="0" step="1" placeholder="JAN取得または手入力" /></label>
         <label>購入単価<input id="purchasePrice" type="number" min="0" step="1" placeholder="5980" /></label>
         <label>個数<input id="quantity" type="number" min="1" step="1" value="1" /></label>
         <label>現在相場（1個）<input id="currentPrice" type="number" min="0" step="1" placeholder="未入力でもOK" /></label>
